@@ -13,7 +13,7 @@ edition = "2021"
 [features]
 default = []
 unstable = []
-guards = ["tower", "futures-core", "pin-project-lite"]
+middleware = ["tower", "futures-core", "pin-project-lite"]
 serde = ["dep:serde", "dep:serde_json"]
 
 [dependencies]

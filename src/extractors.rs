@@ -21,6 +21,23 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct HxBoosted(pub bool);
 
+/// Extracts all bool-like headers
+pub(crate) fn extract_header_bool(parts: &Parts, header_name: &str) -> bool {
+    matches!(
+        parts.headers.get(header_name).map(|x| x.to_str()),
+        Some(Ok("true"))
+    )
+}
+
+/// Extracts all string-like headers
+pub(crate) fn extract_header_string(parts: &Parts, header_name: &str) -> Option<String> {
+    if let Some(prompt) = parts.headers.get(header_name) {
+        return prompt.to_str().ok().map(|s| s.to_owned());
+    }
+
+    None
+}
+
 #[async_trait]
 impl<S> FromRequestParts<S> for HxBoosted
 where
@@ -29,12 +46,20 @@ where
     type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        if parts.headers.contains_key(HX_BOOSTED) {
-            return Ok(HxBoosted(true));
-        } else {
-            return Ok(HxBoosted(false));
-        }
+        Ok(Self(extract_header_bool(parts, HX_BOOSTED)))
     }
+}
+
+pub(crate) fn extract_current_url(parts: &Parts) -> Option<http::Uri> {
+    if let Some(url) = parts.headers.get(HX_CURRENT_URL) {
+        let url = url
+            .to_str()
+            .ok()
+            .and_then(|url| url.parse::<http::Uri>().ok());
+        return url;
+    }
+
+    None
 }
 
 /// The `HX-Current-Url` header.
@@ -55,15 +80,7 @@ where
     type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        if let Some(url) = parts.headers.get(HX_CURRENT_URL) {
-            let url = url
-                .to_str()
-                .ok()
-                .and_then(|url| url.parse::<http::Uri>().ok());
-            return Ok(HxCurrentUrl(url));
-        }
-
-        return Ok(HxCurrentUrl(None));
+        Ok(Self(extract_current_url(parts)))
     }
 }
 
@@ -82,11 +99,7 @@ where
     type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        if parts.headers.contains_key(HX_HISTORY_RESTORE_REQUEST) {
-            return Ok(HxHistoryRestoreRequest(true));
-        } else {
-            return Ok(HxHistoryRestoreRequest(false));
-        }
+        Ok(Self(extract_header_bool(parts, HX_HISTORY_RESTORE_REQUEST)))
     }
 }
 
@@ -108,13 +121,7 @@ where
     type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        if let Some(prompt) = parts.headers.get(HX_PROMPT) {
-            if let Ok(prompt) = prompt.to_str() {
-                return Ok(HxPrompt(Some(prompt.to_string())));
-            }
-        }
-
-        return Ok(HxPrompt(None));
+        Ok(Self(extract_header_string(parts, HX_PROMPT)))
     }
 }
 
@@ -136,11 +143,7 @@ where
     type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        if parts.headers.contains_key(HX_REQUEST) {
-            return Ok(HxRequest(true));
-        } else {
-            return Ok(HxRequest(false));
-        }
+        Ok(Self(extract_header_bool(parts, HX_REQUEST)))
     }
 }
 
@@ -163,13 +166,7 @@ where
     type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        if let Some(target) = parts.headers.get(HX_TARGET) {
-            if let Ok(target) = target.to_str() {
-                return Ok(HxTarget(Some(target.to_string())));
-            }
-        }
-
-        return Ok(HxTarget(None));
+        Ok(Self(extract_header_string(parts, HX_TARGET)))
     }
 }
 
@@ -192,13 +189,7 @@ where
     type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        if let Some(trigger_name) = parts.headers.get(HX_TRIGGER_NAME) {
-            if let Ok(trigger_name) = trigger_name.to_str() {
-                return Ok(HxTriggerName(Some(trigger_name.to_string())));
-            }
-        }
-
-        return Ok(HxTriggerName(None));
+        Ok(Self(extract_header_string(parts, HX_TRIGGER_NAME)))
     }
 }
 
@@ -221,12 +212,6 @@ where
     type Rejection = std::convert::Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        if let Some(trigger) = parts.headers.get(HX_TRIGGER) {
-            if let Ok(trigger) = trigger.to_str() {
-                return Ok(HxTrigger(Some(trigger.to_string())));
-            }
-        }
-
-        return Ok(HxTrigger(None));
+        Ok(Self(extract_header_string(parts, HX_TRIGGER)))
     }
 }
