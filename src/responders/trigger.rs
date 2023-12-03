@@ -1,4 +1,5 @@
 use axum_core::response::{IntoResponseParts, ResponseParts};
+use http::{HeaderName, HeaderValue};
 
 use crate::{headers, HxError};
 
@@ -55,8 +56,8 @@ fn events_to_header_value(events: Vec<HxEvent>) -> Result<http::HeaderValue, HxE
     let header = events
         .into_iter()
         .map(|HxEvent { name }| name)
-        .collect::<Vec<_>>()
-        .join(", ");
+        .reduce(|acc, e| acc + ", " + &e)
+        .unwrap_or_default();
     http::HeaderValue::from_str(&header).map_err(Into::into)
 }
 
@@ -64,7 +65,6 @@ fn events_to_header_value(events: Vec<HxEvent>) -> Result<http::HeaderValue, HxE
 fn events_to_header_value(events: Vec<HxEvent>) -> Result<http::HeaderValue, HxError> {
     use std::collections::HashMap;
 
-    use http::HeaderValue;
     use serde_json::Value;
 
     let with_data = events.iter().any(|e| e.data.is_some());
@@ -139,6 +139,19 @@ impl HxResponseTrigger {
     pub fn after_swap<T: Into<HxEvent>>(events: impl IntoIterator<Item = T>) -> Self {
         Self::new(TriggerMode::AfterSwap, events)
     }
+
+    pub(crate) fn into_header_name_value(self) -> Result<(HeaderName, HeaderValue), HxError> {
+        let header = match self.mode {
+            TriggerMode::Normal => headers::HX_TRIGGER,
+            TriggerMode::AfterSettle => headers::HX_TRIGGER_AFTER_SETTLE,
+            TriggerMode::AfterSwap => headers::HX_TRIGGER_AFTER_SETTLE,
+        };
+
+        let value = events_to_header_value(self.events)?;
+        let name = HeaderName::from_static(header);
+
+        Ok((name, value))
+    }
 }
 
 impl<T> From<(TriggerMode, T)> for HxResponseTrigger
@@ -159,14 +172,8 @@ impl IntoResponseParts for HxResponseTrigger {
 
     fn into_response_parts(self, mut res: ResponseParts) -> Result<ResponseParts, Self::Error> {
         if !self.events.is_empty() {
-            let header = match self.mode {
-                TriggerMode::Normal => headers::HX_TRIGGER,
-                TriggerMode::AfterSettle => headers::HX_TRIGGER_AFTER_SETTLE,
-                TriggerMode::AfterSwap => headers::HX_TRIGGER_AFTER_SETTLE,
-            };
-
-            res.headers_mut()
-                .insert(header, events_to_header_value(self.events)?);
+            let (name, value) = self.into_header_name_value()?;
+            res.headers_mut().insert(name, value);
         }
 
         Ok(res)

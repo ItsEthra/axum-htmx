@@ -14,7 +14,7 @@ use pin_project_lite::pin_project;
 use tower::{Layer, Service};
 
 use crate::{
-    extract_current_url, extract_header_bool, extract_header_string, headers, HxLocation,
+    extract_current_url, extract_header_bool, extract_header_string, headers, HxError, HxLocation,
     HxPushUrl, HxRedirect, HxRefresh, HxReplaceUrl, HxReselect, HxResponseTrigger, HxReswap,
     HxRetarget,
 };
@@ -163,13 +163,14 @@ pub struct HtmxService<S> {
 impl<S, Req, Res> Service<Request<Req>> for HtmxService<S>
 where
     S: Service<Request<Req>, Response = Response<Res>>,
+    S::Error: std::error::Error + 'static,
 {
     type Response = S::Response;
-    type Error = S::Error;
+    type Error = HxError;
     type Future = private::ResponseFuture<S::Future>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx)
+        self.inner.poll_ready(cx).map_err(HxError::custom)
     }
 
     fn call(&mut self, mut req: Request<Req>) -> Self::Future {
@@ -198,7 +199,12 @@ impl<S> Layer<S> for HtmxLayer {
 }
 
 mod private {
+    use std::error;
+
+    use http::HeaderValue;
+
     use super::*;
+    use crate::{headers as hxs, HxError};
 
     pin_project! {
         pub struct ResponseFuture<F> {
@@ -211,14 +217,63 @@ mod private {
     impl<F, Res, Err> Future for ResponseFuture<F>
     where
         F: Future<Output = Result<Response<Res>, Err>>,
+        Err: error::Error + 'static,
     {
-        type Output = F::Output;
+        type Output = Result<Response<Res>, HxError>;
 
         fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             let this = self.project();
-            let res = ready!(this.fut.poll(cx))?;
+            let mut res = ready!(this.fut.poll(cx)).map_err(HxError::custom)?;
 
-            // TODO: Set response headers
+            let Ok(mut hs) = this.hs.inner.lock() else {
+                return Poll::Ready(Ok(res));
+            };
+
+            if let Some(h) = hs.location.take() {
+                let val = HeaderValue::from_maybe_shared(h.into_header_with_options()?)?;
+                res.headers_mut().append(hxs::HX_LOCATION, val);
+            }
+
+            if let Some(h) = hs.push_url.take() {
+                let val = HeaderValue::from_maybe_shared(h.0.to_string())?;
+                res.headers_mut().append(hxs::HX_PUSH_URL, val);
+            }
+
+            if let Some(h) = hs.redirect.take() {
+                let val = HeaderValue::from_maybe_shared(h.0.to_string())?;
+                res.headers_mut().append(hxs::HX_REDIRECT, val);
+            }
+
+            if let Some(h) = hs.refresh.take() {
+                if h.0 {
+                    res.headers_mut()
+                        .append(hxs::HX_REFRESH, HeaderValue::from_static("true"));
+                }
+            }
+
+            if let Some(h) = hs.replace_url.take() {
+                let val = HeaderValue::from_maybe_shared(h.0.to_string())?;
+                res.headers_mut().append(hxs::HX_REPLACE_URL, val);
+            }
+
+            if let Some(h) = hs.reswap.take() {
+                res.headers_mut().append(hxs::HX_RESWAP, h.0.into());
+            }
+
+            if let Some(h) = hs.retarget.take() {
+                let val = HeaderValue::from_maybe_shared(h.0)?;
+                res.headers_mut().append(hxs::HX_RETARGET, val);
+            }
+
+            if let Some(h) = hs.reselect.take() {
+                let val = HeaderValue::from_maybe_shared(h.0)?;
+                res.headers_mut().append(hxs::HX_RESELECT, val);
+            }
+
+            if let Some(h) = hs.trigger.take() {
+                let (name, value) = h.into_header_name_value()?;
+                res.headers_mut().append(name, value);
+            }
 
             Poll::Ready(Ok(res))
         }

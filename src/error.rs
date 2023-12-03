@@ -6,10 +6,17 @@ use http::{header::InvalidHeaderValue, StatusCode};
 #[derive(Debug)]
 pub enum HxError {
     InvalidHeaderValue(InvalidHeaderValue),
+    Custom(Box<dyn error::Error + 'static>),
 
     #[cfg(feature = "serde")]
     #[cfg_attr(feature = "unstable", doc(cfg(feature = "serde")))]
     Json(serde_json::Error),
+}
+
+impl HxError {
+    pub(crate) fn custom(err: impl error::Error + 'static) -> Self {
+        Self::Custom(Box::new(err))
+    }
 }
 
 impl From<InvalidHeaderValue> for HxError {
@@ -30,6 +37,7 @@ impl fmt::Display for HxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             HxError::InvalidHeaderValue(err) => write!(f, "Invalid header value: {err}"),
+            HxError::Custom(err) => write!(f, "{err}"),
             #[cfg(feature = "serde")]
             HxError::Json(err) => write!(f, "Json: {err}"),
         }

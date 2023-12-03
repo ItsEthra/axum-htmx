@@ -67,7 +67,7 @@ impl HxLocation {
     }
 
     #[cfg(feature = "serde")]
-    fn into_header_with_options(self) -> Result<String, HxError> {
+    pub(crate) fn into_header_with_options(self) -> Result<String, HxError> {
         if self.options.is_default() {
             return Ok(self.uri.to_string());
         }
