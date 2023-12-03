@@ -8,8 +8,8 @@ use std::{
 };
 
 use async_trait::async_trait;
-use axum_core::extract::FromRequestParts;
-use http::{request::Parts, Request, Response};
+use axum_core::{extract::FromRequestParts, response::Response};
+use http::{request::Parts, HeaderValue, Request};
 use pin_project_lite::pin_project;
 use tower::{Layer, Service};
 
@@ -160,17 +160,16 @@ pub struct HtmxService<S> {
     inner: S,
 }
 
-impl<S, Req, Res> Service<Request<Req>> for HtmxService<S>
+impl<S, Req> Service<Request<Req>> for HtmxService<S>
 where
-    S: Service<Request<Req>, Response = Response<Res>>,
-    S::Error: std::error::Error + Send + 'static,
+    S: Service<Request<Req>, Response = Response>,
 {
     type Response = S::Response;
-    type Error = HxError;
+    type Error = S::Error;
     type Future = private::ResponseFuture<S::Future>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx).map_err(HxError::custom)
+        self.inner.poll_ready(cx)
     }
 
     fn call(&mut self, mut req: Request<Req>) -> Self::Future {
@@ -187,8 +186,16 @@ where
 }
 
 /// Layer that applies [`Htmx`] middleware.
-#[derive(Clone)]
-pub struct HtmxLayer;
+#[derive(Clone, Default)]
+pub struct HtmxLayer {
+    _priv: (),
+}
+
+impl HtmxLayer {
+    pub fn new() -> Self {
+        Self { _priv: () }
+    }
+}
 
 impl<S> Layer<S> for HtmxLayer {
     type Service = HtmxService<S>;
@@ -199,12 +206,10 @@ impl<S> Layer<S> for HtmxLayer {
 }
 
 pub mod private {
-    use std::error;
-
-    use http::HeaderValue;
+    use axum_core::body::Body;
+    use http::StatusCode;
 
     use super::*;
-    use crate::{headers as hxs, HxError};
 
     pin_project! {
         pub struct ResponseFuture<F> {
@@ -214,68 +219,84 @@ pub mod private {
         }
     }
 
-    impl<F, Res, Err> Future for ResponseFuture<F>
+    impl<F> ResponseFuture<F> {}
+
+    impl<F, Err> Future for ResponseFuture<F>
     where
-        F: Future<Output = Result<Response<Res>, Err>>,
-        Err: error::Error + Send + 'static,
+        F: Future<Output = Result<Response, Err>>,
     {
-        type Output = Result<Response<Res>, HxError>;
+        type Output = Result<Response, Err>;
 
         fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             let this = self.project();
-            let mut res = ready!(this.fut.poll(cx)).map_err(HxError::custom)?;
+            let mut res = ready!(this.fut.poll(cx))?;
 
             let Ok(mut hs) = this.hs.inner.lock() else {
                 return Poll::Ready(Ok(res));
             };
 
-            if let Some(h) = hs.location.take() {
-                let val = HeaderValue::from_maybe_shared(h.into_header_with_options()?)?;
-                res.headers_mut().append(hxs::HX_LOCATION, val);
-            }
+            let out = if let Err(err) = apply(&mut res, &mut hs) {
+                Response::builder()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(Body::from(err.to_string()))
+                    .unwrap()
+            } else {
+                res
+            };
 
-            if let Some(h) = hs.push_url.take() {
-                let val = HeaderValue::from_maybe_shared(h.0.to_string())?;
-                res.headers_mut().append(hxs::HX_PUSH_URL, val);
-            }
-
-            if let Some(h) = hs.redirect.take() {
-                let val = HeaderValue::from_maybe_shared(h.0.to_string())?;
-                res.headers_mut().append(hxs::HX_REDIRECT, val);
-            }
-
-            if let Some(h) = hs.refresh.take() {
-                if h.0 {
-                    res.headers_mut()
-                        .append(hxs::HX_REFRESH, HeaderValue::from_static("true"));
-                }
-            }
-
-            if let Some(h) = hs.replace_url.take() {
-                let val = HeaderValue::from_maybe_shared(h.0.to_string())?;
-                res.headers_mut().append(hxs::HX_REPLACE_URL, val);
-            }
-
-            if let Some(h) = hs.reswap.take() {
-                res.headers_mut().append(hxs::HX_RESWAP, h.0.into());
-            }
-
-            if let Some(h) = hs.retarget.take() {
-                let val = HeaderValue::from_maybe_shared(h.0)?;
-                res.headers_mut().append(hxs::HX_RETARGET, val);
-            }
-
-            if let Some(h) = hs.reselect.take() {
-                let val = HeaderValue::from_maybe_shared(h.0)?;
-                res.headers_mut().append(hxs::HX_RESELECT, val);
-            }
-
-            if let Some(h) = hs.trigger.take() {
-                let (name, value) = h.into_header_name_value()?;
-                res.headers_mut().append(name, value);
-            }
-
-            Poll::Ready(Ok(res))
+            Poll::Ready(Ok(out))
         }
     }
+}
+
+fn apply<Res>(res: &mut Response<Res>, hs: &mut InnerResHeaders) -> Result<(), HxError> {
+    use crate::headers as hxs;
+
+    if let Some(h) = hs.location.take() {
+        let val = HeaderValue::from_maybe_shared(h.into_header_with_options()?)?;
+        res.headers_mut().append(hxs::HX_LOCATION, val);
+    }
+
+    if let Some(h) = hs.push_url.take() {
+        let val = HeaderValue::from_maybe_shared(h.0.to_string())?;
+        res.headers_mut().append(hxs::HX_PUSH_URL, val);
+    }
+
+    if let Some(h) = hs.redirect.take() {
+        let val = HeaderValue::from_maybe_shared(h.0.to_string())?;
+        res.headers_mut().append(hxs::HX_REDIRECT, val);
+    }
+
+    if let Some(h) = hs.refresh.take() {
+        if h.0 {
+            res.headers_mut()
+                .append(hxs::HX_REFRESH, HeaderValue::from_static("true"));
+        }
+    }
+
+    if let Some(h) = hs.replace_url.take() {
+        let val = HeaderValue::from_maybe_shared(h.0.to_string())?;
+        res.headers_mut().append(hxs::HX_REPLACE_URL, val);
+    }
+
+    if let Some(h) = hs.reswap.take() {
+        res.headers_mut().append(hxs::HX_RESWAP, h.0.into());
+    }
+
+    if let Some(h) = hs.retarget.take() {
+        let val = HeaderValue::from_maybe_shared(h.0)?;
+        res.headers_mut().append(hxs::HX_RETARGET, val);
+    }
+
+    if let Some(h) = hs.reselect.take() {
+        let val = HeaderValue::from_maybe_shared(h.0)?;
+        res.headers_mut().append(hxs::HX_RESELECT, val);
+    }
+
+    if let Some(h) = hs.trigger.take() {
+        let (name, value) = h.into_header_name_value()?;
+        res.headers_mut().append(name, value);
+    }
+
+    Ok(())
 }
