@@ -10,7 +10,7 @@
   <title>axum-htmx example</title>
 
   <style>
-    h1 {
+    p h1 {
       margin: 0;
     }
 
@@ -18,7 +18,19 @@
       font-size: 1rem;
     }
 
+    .content {
+      margin: 0 auto;
+      margin-top: 5rem;
+      padding: 2rem 1rem;
+      width: 10rem;
+      border: solid 2px gray;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     body {
+      width: 100%;
       margin: 0;
       color: whitesmoke;
       background-color: black;
@@ -28,11 +40,13 @@
 </head>
 
 <body>
-  <div id="messages">
+  <div class="content">
+    <div id="messages">
+    </div>
+    <button hx-prompt="Name" hx-get="http://127.0.0.1:9000/random" hx-trigger="click" hx-target="#messages" hx-swap="beforeend">
+      Click Me!
+    </button>
   </div>
-  <button hx-get="http://127.0.0.1:9000/click" hx-trigger="click" hx-target="#messages" hx-swap="beforeend">
-    Click Me!
-  </button>
 </body>
 
 </html>
