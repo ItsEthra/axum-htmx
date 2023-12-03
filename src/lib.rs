@@ -2,6 +2,9 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 
+mod error;
+pub use error::*;
+
 /// Guard and htmx middleware.
 #[cfg(feature = "middleware")]
 #[cfg_attr(feature = "unstable", doc(cfg(feature = "middleware")))]
