@@ -6,7 +6,7 @@ use http::{header::InvalidHeaderValue, StatusCode};
 #[derive(Debug)]
 pub enum HxError {
     InvalidHeaderValue(InvalidHeaderValue),
-    Custom(Box<dyn error::Error + 'static>),
+    Custom(Box<dyn error::Error + Send + 'static>),
 
     #[cfg(feature = "serde")]
     #[cfg_attr(feature = "unstable", doc(cfg(feature = "serde")))]
@@ -14,7 +14,7 @@ pub enum HxError {
 }
 
 impl HxError {
-    pub(crate) fn custom(err: impl error::Error + 'static) -> Self {
+    pub(crate) fn custom(err: impl error::Error + Send + 'static) -> Self {
         Self::Custom(Box::new(err))
     }
 }

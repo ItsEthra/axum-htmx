@@ -26,6 +26,4 @@ pub use headers::*;
 #[cfg(feature = "middleware")]
 #[cfg_attr(feature = "unstable", doc(cfg(feature = "middleware")))]
 #[doc(inline)]
-pub use middleware::*;
-#[doc(inline)]
 pub use responders::*;

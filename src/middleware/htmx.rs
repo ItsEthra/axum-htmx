@@ -163,7 +163,7 @@ pub struct HtmxService<S> {
 impl<S, Req, Res> Service<Request<Req>> for HtmxService<S>
 where
     S: Service<Request<Req>, Response = Response<Res>>,
-    S::Error: std::error::Error + 'static,
+    S::Error: std::error::Error + Send + 'static,
 {
     type Response = S::Response;
     type Error = HxError;
@@ -198,7 +198,7 @@ impl<S> Layer<S> for HtmxLayer {
     }
 }
 
-mod private {
+pub mod private {
     use std::error;
 
     use http::HeaderValue;
@@ -217,7 +217,7 @@ mod private {
     impl<F, Res, Err> Future for ResponseFuture<F>
     where
         F: Future<Output = Result<Response<Res>, Err>>,
-        Err: error::Error + 'static,
+        Err: error::Error + Send + 'static,
     {
         type Output = Result<Response<Res>, HxError>;
 
