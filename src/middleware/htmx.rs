@@ -65,6 +65,7 @@ struct InnerResHeaders {
     trigger: Option<HxResponseTrigger>,
 }
 
+/// Control of the response headers.
 #[derive(Debug, Clone)]
 pub struct ResponseHeaders {
     inner: Arc<Mutex<InnerResHeaders>>,
@@ -135,7 +136,9 @@ impl ResponseHeaders {
 /// Extractor for htmx middleware.
 #[derive(Debug)]
 pub struct Htmx {
+    /// Request headers.
     pub req: RequestHeaders,
+    /// Handle to set response headers.
     pub res: ResponseHeaders,
 }
 
