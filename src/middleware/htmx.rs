@@ -13,7 +13,11 @@ use http::{request::Parts, Request, Response};
 use pin_project_lite::pin_project;
 use tower::{Layer, Service};
 
-use crate::{extract_current_url, extract_header_bool, extract_header_string, headers, responders};
+use crate::{
+    extract_current_url, extract_header_bool, extract_header_string, headers, HxLocation,
+    HxPushUrl, HxRedirect, HxRefresh, HxReplaceUrl, HxReselect, HxResponseTrigger, HxReswap,
+    HxRetarget,
+};
 
 #[derive(Debug, Clone)]
 pub struct RequestHeaders {
@@ -50,15 +54,15 @@ impl RequestHeaders {
 
 #[derive(Debug, Clone, Default)]
 struct InnerResHeaders {
-    location: Option<responders::HxLocation>,
-    push_url: Option<responders::HxPushUrl>,
-    redirect: Option<responders::HxRedirect>,
-    refresh: Option<responders::HxRefresh>,
-    replace_url: Option<responders::HxReplaceUrl>,
-    reswap: Option<responders::HxReswap>,
-    retarget: Option<responders::HxRetarget>,
-    reselect: Option<responders::HxReselect>,
-    trigger: Option<responders::HxResponseTrigger>,
+    location: Option<HxLocation>,
+    push_url: Option<HxPushUrl>,
+    redirect: Option<HxRedirect>,
+    refresh: Option<HxRefresh>,
+    replace_url: Option<HxReplaceUrl>,
+    reswap: Option<HxReswap>,
+    retarget: Option<HxRetarget>,
+    reselect: Option<HxReselect>,
+    trigger: Option<HxResponseTrigger>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,7 +70,67 @@ pub struct ResponseHeaders {
     inner: Arc<Mutex<InnerResHeaders>>,
 }
 
-impl ResponseHeaders {}
+impl ResponseHeaders {
+    fn guard(&self, call: impl FnOnce(&mut InnerResHeaders)) {
+        if let Ok(mut inner) = self.inner.lock() {
+            call(&mut inner);
+        }
+    }
+
+    /// Sets `HX-Location` header.
+    pub fn set_location(&self, location: impl Into<HxLocation>) -> &Self {
+        self.guard(|hs| _ = hs.location.replace(location.into()));
+        self
+    }
+
+    /// Sets `HX-Push-Url` header.
+    pub fn set_push_url(&self, push_url: impl Into<HxPushUrl>) -> &Self {
+        self.guard(|hs| _ = hs.push_url.replace(push_url.into()));
+        self
+    }
+
+    /// Sets `HX-Redirect` header.
+    pub fn set_redirect(&self, redirect: impl Into<HxRedirect>) -> &Self {
+        self.guard(|hs| _ = hs.redirect.replace(redirect.into()));
+        self
+    }
+
+    /// Sets `HX-Refresh` header.
+    pub fn set_refresh(&self, refresh: impl Into<HxRefresh>) -> &Self {
+        self.guard(|hs| _ = hs.refresh.replace(refresh.into()));
+        self
+    }
+
+    /// Sets `HX-Replace-Url` header.
+    pub fn set_replace_url(&self, replace_url: impl Into<HxReplaceUrl>) -> &Self {
+        self.guard(|hs| _ = hs.replace_url.replace(replace_url.into()));
+        self
+    }
+
+    /// Sets `HX-Reswap` header.
+    pub fn set_reswap(&self, reswap: impl Into<HxReswap>) -> &Self {
+        self.guard(|hs| _ = hs.reswap.replace(reswap.into()));
+        self
+    }
+
+    /// Sets `HX-Retarget` header.
+    pub fn set_retarget(&self, retarget: impl Into<HxRetarget>) -> &Self {
+        self.guard(|hs| _ = hs.retarget.replace(retarget.into()));
+        self
+    }
+
+    /// Sets `HX-Reselect` header.
+    pub fn set_reselect(&self, reselect: impl Into<HxReselect>) -> &Self {
+        self.guard(|hs| _ = hs.reselect.replace(reselect.into()));
+        self
+    }
+
+    /// Sets `HX-Trigger*` headers
+    pub fn set_trigger(&self, trigger: impl Into<HxResponseTrigger>) -> &Self {
+        self.guard(|hs| _ = hs.trigger.replace(trigger.into()));
+        self
+    }
+}
 
 /// Extractor for htmx middleware.
 #[derive(Debug)]
