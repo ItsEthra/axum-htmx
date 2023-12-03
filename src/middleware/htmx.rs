@@ -3,7 +3,7 @@
 use std::{
     future::Future,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, Mutex},
     task::{ready, Context, Poll},
 };
 
@@ -13,7 +13,7 @@ use http::{request::Parts, Request, Response};
 use pin_project_lite::pin_project;
 use tower::{Layer, Service};
 
-use crate::{extract_current_url, extract_header_bool, extract_header_string, headers};
+use crate::{extract_current_url, extract_header_bool, extract_header_string, headers, responders};
 
 #[derive(Debug, Clone)]
 pub struct RequestHeaders {
@@ -49,12 +49,24 @@ impl RequestHeaders {
 }
 
 #[derive(Debug, Clone, Default)]
-struct InnerResHeaders {}
+struct InnerResHeaders {
+    location: Option<responders::HxLocation>,
+    push_url: Option<responders::HxPushUrl>,
+    redirect: Option<responders::HxRedirect>,
+    refresh: Option<responders::HxRefresh>,
+    replace_url: Option<responders::HxReplaceUrl>,
+    reswap: Option<responders::HxReswap>,
+    retarget: Option<responders::HxRetarget>,
+    reselect: Option<responders::HxReselect>,
+    trigger: Option<responders::HxResponseTrigger>,
+}
 
 #[derive(Debug, Clone)]
 pub struct ResponseHeaders {
-    inner: Arc<InnerResHeaders>,
+    inner: Arc<Mutex<InnerResHeaders>>,
 }
+
+impl ResponseHeaders {}
 
 /// Extractor for htmx middleware.
 #[derive(Debug)]
@@ -69,12 +81,11 @@ impl<S> FromRequestParts<S> for Htmx {
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
         let req = RequestHeaders::from_parts(parts);
-        let inner = parts
+        let res = parts
             .extensions
-            .get::<Arc<InnerResHeaders>>()
+            .get::<ResponseHeaders>()
             .expect("htmx extension is missing, are you using HtmxLayer middleware?")
             .clone();
-        let res = ResponseHeaders { inner };
 
         Ok(Self { req, res })
     }
@@ -143,7 +154,7 @@ mod private {
             let this = self.project();
             let res = ready!(this.fut.poll(cx))?;
 
-            dbg!(this.hs);
+            // TODO: Set response headers
 
             Poll::Ready(Ok(res))
         }
