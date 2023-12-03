@@ -3,6 +3,7 @@
 use std::{
     future::Future,
     pin::Pin,
+    sync::Arc,
     task::{ready, Context, Poll},
 };
 
@@ -47,8 +48,13 @@ impl RequestHeaders {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct ResponseHeaders {}
+#[derive(Debug, Clone, Default)]
+struct InnerResHeaders {}
+
+#[derive(Debug, Clone)]
+pub struct ResponseHeaders {
+    inner: Arc<InnerResHeaders>,
+}
 
 /// Extractor for htmx middleware.
 #[derive(Debug)]
@@ -63,7 +69,12 @@ impl<S> FromRequestParts<S> for Htmx {
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
         let req = RequestHeaders::from_parts(parts);
-        let res = ResponseHeaders::default();
+        let inner = parts
+            .extensions
+            .get::<Arc<InnerResHeaders>>()
+            .expect("htmx extension is missing, are you using HtmxLayer middleware?")
+            .clone();
+        let res = ResponseHeaders { inner };
 
         Ok(Self { req, res })
     }
@@ -86,14 +97,15 @@ where
         self.inner.poll_ready(cx)
     }
 
-    fn call(&mut self, req: Request<Req>) -> Self::Future {
-        let (parts, body) = req.into_parts();
-        let htmx_req = RequestHeaders::from_parts(&parts);
-        let mut req = Request::from_parts(parts, body);
-        req.extensions_mut().insert(htmx_req);
+    fn call(&mut self, mut req: Request<Req>) -> Self::Future {
+        let hs = ResponseHeaders {
+            inner: Arc::default(),
+        };
+        req.extensions_mut().insert(hs.clone());
 
         private::ResponseFuture {
             fut: self.inner.call(req),
+            hs,
         }
     }
 }
@@ -117,6 +129,7 @@ mod private {
         pub struct ResponseFuture<F> {
             #[pin]
             pub(super) fut: F,
+            pub(super) hs: ResponseHeaders,
         }
     }
 
@@ -129,6 +142,9 @@ mod private {
         fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             let this = self.project();
             let res = ready!(this.fut.poll(cx))?;
+
+            dbg!(this.hs);
+
             Poll::Ready(Ok(res))
         }
     }
