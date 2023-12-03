@@ -47,9 +47,11 @@ impl RequestHeaders {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ResponseHeaders {}
 
+/// Extractor for htmx middleware.
+#[derive(Debug)]
 pub struct Htmx {
     pub req: RequestHeaders,
     pub res: ResponseHeaders,
@@ -67,6 +69,7 @@ impl<S> FromRequestParts<S> for Htmx {
     }
 }
 
+#[derive(Clone)]
 pub struct HtmxService<S> {
     inner: S,
 }
@@ -96,7 +99,8 @@ where
 }
 
 /// Layer that applies [`Htmx`] middleware.
-pub struct HtmxLayer {}
+#[derive(Clone)]
+pub struct HtmxLayer;
 
 impl<S> Layer<S> for HtmxLayer {
     type Service = HtmxService<S>;

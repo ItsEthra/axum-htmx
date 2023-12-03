@@ -28,7 +28,9 @@
 </head>
 
 <body>
-  <button hx-post="http://127.0.0.1:9000/click" hx-trigger="click" hx-target="this" hx-swap="outerHTML">
+  <div id="messages">
+  </div>
+  <button hx-get="http://127.0.0.1:9000/click" hx-trigger="click" hx-target="#messages" hx-swap="beforeend">
     Click Me!
   </button>
 </body>
