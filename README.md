@@ -44,16 +44,25 @@ succeed and never return an error. In the case where a header is not present,
 the extractor will return `None` or `false` dependant on the expected return
 type.
 
-| Header                       | Extractor                 | Value                     |
-|------------------------------|---------------------------|---------------------------|
-| `HX-Boosted`                 | `HxBoosted`               | `bool`                    |
-| `HX-Current-URL`             | `HxCurrentUrl`            | `Option<axum::http::Uri>` |
-| `HX-History-Restore-Request` | `HxHistoryRestoreRequest` | `bool`                    |
-| `HX-Prompt`                  | `HxPrompt`                | `Option<String>`          |
-| `HX-Request`                 | `HxRequest`               | `bool`                    |
-| `HX-Target`                  | `HxTarget`                | `Option<String>`          |
-| `HX-Trigger-Name`            | `HxTriggerName`           | `Option<String>`          |
-| `HX-Trigger`                 | `HxTrigger`               | `Option<String>`          |
+| Header                       | Extractor                   | Value                       |
+|------------------------------|-----------------------------|-----------------------------|
+| `HX-Boosted`                 | [`HxBoosted`]               | [`bool`]                    |
+| `HX-Current-URL`             | [`HxCurrentUrl`]            | [`Option<Uri>`]             |
+| `HX-History-Restore-Request` | [`HxHistoryRestoreRequest`] | [`bool`]                    |
+| `HX-Prompt`                  | [`HxPrompt`]                | [`Option<String>`]          |
+| `HX-Request`                 | [`HxRequest`]               | [`bool`]                    |
+| `HX-Target`                  | [`HxTarget`]                | [`Option<String>`]          |
+| `HX-Trigger-Name`            | [`HxTriggerName`]           | [`Option<String>`]          |
+| `HX-Trigger`                 | [`HxTrigger`]               | [`Option<String>`]          |
+
+[`HxBoosted`]: extract/struct.HxBoosted.html
+[`HxCurrentUrl`]: extract/struct.HxCurrentUrl.html
+[`HxHistoryRestoreRequest`]: extract/struct.HxHistoryRestoreRequest.html
+[`HxPrompt`]: extract/struct.HxPrompt.html
+[`HxRequest`]: extract/struct.HxRequest.html
+[`HxTarget`]: extract/struct.HxTarget.html
+[`HxTriggerName`]: extract/struct.HxTriggerName.html
+[`HxTrigger`]: extract/struct.HxTrigger.html
 
 ## Responders
 
@@ -62,19 +71,35 @@ have a supported responder. A responder is a basic type that implements
 `IntoResponseParts`, allowing you to simply and safely apply the HX-* headers to
 any of your responses.
 
-| Header                    | Responder           | Value                               |
-|---------------------------|---------------------|-------------------------------------|
-| `HX-Location`             | `HxLocation`        | `axum::http::Uri`                   |
-| `HX-Push-Url`             | `HxPushUrl`         | `axum::http::Uri`                   |
-| `HX-Redirect`             | `HxRedirect`        | `axum::http::Uri`                   |
-| `HX-Refresh`              | `HxRefresh`         | `bool`                              |
-| `HX-Replace-Url`          | `HxReplaceUrl`      | `axum::http::Uri`                   |
-| `HX-Reswap`               | `HxReswap`          | `axum_htmx::responders::SwapOption` |
-| `HX-Retarget`             | `HxRetarget`        | `String`                            |
-| `HX-Reselect`             | `HxReselect`        | `String`                            |
-| `HX-Trigger`              | `HxResponseTrigger` | `axum_htmx::serde::HxEvent`         |
-| `HX-Trigger-After-Settle` | `HxResponseTrigger` | `axum_htmx::serde::HxEvent`         |
-| `HX-Trigger-After-Swap`   | `HxResponseTrigger` | `axum_htmx::serde::HxEvent`         |
+| Header                    | Responder             | Value            |
+|---------------------------|-----------------------|------------------|
+| `HX-Location`             | [`HxLocation`]        | [`Uri`]          |
+| `HX-Push-Url`             | [`HxPushUrl`]         | [`Uri`]          |
+| `HX-Redirect`             | [`HxRedirect`]        | [`Uri`]          |
+| `HX-Refresh`              | [`HxRefresh`]         | [`bool`]         |
+| `HX-Replace-Url`          | [`HxReplaceUrl`]      | [`Uri`]          |
+| `HX-Reswap`               | [`HxReswap`]          | [`SwapOption`]   |
+| `HX-Retarget`             | [`HxRetarget`]        | [`String`]       |
+| `HX-Reselect`             | [`HxReselect`]        | [`String`]       |
+| `HX-Trigger`              | [`HxResponseTrigger`] | [`HxEvent`]      |
+| `HX-Trigger-After-Settle` | [`HxResponseTrigger`] | [`HxEvent`]      |
+| `HX-Trigger-After-Swap`   | [`HxResponseTrigger`] | [`HxEvent`]      |
+
+[`HxLocation`]: response/struct.HxLocation.html
+[`HxPushUrl`]: response/struct.HxPushUrl.html
+[`HxRedirect`]: response/struct.HxRedirect.html
+[`HxRefresh`]: response/struct.HxRefresh.html
+[`HxReplaceUrl`]: response/struct.HxReplaceUrl.html
+[`HxReswap`]: response/struct.HxReswap.html
+[`HxRetarget`]: response/struct.HxRetarget.html
+[`HxReselect`]: response/struct.HxReselect.html
+[`HxResponseTrigger`]: response/struct.HxResponseTrigger.html
+[`HxResponseTrigger`]: response/struct.HxResponseTrigger.html
+[`HxResponseTrigger`]: response/struct.HxResponseTrigger.html
+
+[`Uri`]: https://docs.rs/http/latest/http/uri/struct.Uri.html
+[`SwapOption`]: response/enum.SwapOption.html
+[`HxEvent`]: response/struct.HxEvent.html
 
 ## Request Guards
 

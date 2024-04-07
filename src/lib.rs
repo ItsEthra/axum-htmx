@@ -5,20 +5,19 @@
 mod error;
 pub use error::*;
 
-pub mod extractors;
-#[cfg(feature = "guards")]
-#[cfg_attr(feature = "unstable", doc(cfg(feature = "guards")))]
-pub mod guard;
+pub mod extract;
+
+/// Axum middleware. Currently only includes guards to protect partial content.
+#[cfg(feature = "middleware")]
+#[cfg_attr(feature = "unstable", doc(cfg(feature = "middleware")))]
+pub mod middleware {
+    mod guard;
+    #[doc(inline)]
+    pub use guard::*;
+}
+
 pub mod headers;
-pub mod responders;
+pub mod response;
 
 #[doc(inline)]
-pub use extractors::*;
-#[cfg(feature = "guards")]
-#[cfg_attr(feature = "unstable", doc(cfg(feature = "guards")))]
-#[doc(inline)]
-pub use guard::*;
-#[doc(inline)]
 pub use headers::*;
-#[doc(inline)]
-pub use responders::*;

@@ -168,7 +168,7 @@ pub struct LocationOptions {
     pub target: Option<String>,
     /// How the response will be swapped in relative to the target.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub swap: Option<crate::SwapOption>,
+    pub swap: Option<crate::response::SwapOption>,
     /// Values to submit with the request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub values: Option<serde_json::Value>,
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     #[cfg(feature = "serde")]
     fn test_serialize_location() {
-        use crate::SwapOption;
+        use crate::response::SwapOption;
 
         let loc = HxLocation::try_from("/foo").unwrap();
         assert_eq!(loc.into_header_with_options().unwrap(), "/foo");

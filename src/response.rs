@@ -247,7 +247,6 @@ impl<T: Into<String>> From<T> for HxReselect {
 }
 
 /// Values of the `hx-swap` attribute.
-// serde::Serialize is implemented in responders/serde.rs
 #[derive(Debug, Copy, Clone)]
 pub enum SwapOption {
     /// Replace the inner html of the target element.

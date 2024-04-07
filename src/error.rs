@@ -3,6 +3,7 @@ use std::{error, fmt};
 use axum_core::response::IntoResponse;
 use http::{header::InvalidHeaderValue, StatusCode};
 
+/// Error enum of all possible errors.
 #[derive(Debug)]
 pub enum HxError {
     InvalidHeaderValue(InvalidHeaderValue),

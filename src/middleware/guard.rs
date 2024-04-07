@@ -25,12 +25,14 @@ pub struct HxRequestGuardLayer<'a> {
 }
 
 impl<'a> HxRequestGuardLayer<'a> {
+    #[inline]
     pub fn new(redirect_to: &'a str) -> Self {
         Self { redirect_to }
     }
 }
 
 impl Default for HxRequestGuardLayer<'_> {
+    #[inline]
     fn default() -> Self {
         Self { redirect_to: "/" }
     }
@@ -39,10 +41,10 @@ impl Default for HxRequestGuardLayer<'_> {
 impl<'a, S> Layer<S> for HxRequestGuardLayer<'a> {
     type Service = HxRequestGuard<'a, S>;
 
+    #[inline]
     fn layer(&self, inner: S) -> Self::Service {
         HxRequestGuard {
             inner,
-            hx_request: false,
             layer: self.clone(),
         }
     }
@@ -52,7 +54,6 @@ impl<'a, S> Layer<S> for HxRequestGuardLayer<'a> {
 #[derive(Debug, Clone)]
 pub struct HxRequestGuard<'a, S> {
     inner: S,
-    hx_request: bool,
     layer: HxRequestGuardLayer<'a>,
 }
 
@@ -71,15 +72,12 @@ where
 
     fn call(&mut self, req: Request<T>) -> Self::Future {
         // This will always contain a "true" value.
-        if req.headers().contains_key(HX_REQUEST) {
-            self.hx_request = true;
-        }
-
+        let hx_request = req.headers().contains_key(HX_REQUEST);
         let response_future = self.inner.call(req);
 
         private::ResponseFuture {
             response_future,
-            hx_request: self.hx_request,
+            hx_request,
             layer: self.layer.clone(),
         }
     }
